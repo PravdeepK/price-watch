@@ -237,3 +237,7 @@ site that blocks the normal client or returns a page without a price, it uses
 TLS fingerprint. It does not solve CAPTCHAs, use proxies, reuse browser cookies or
 log in to accounts. A site that still blocks it shows "blocked by site protection".
 Check a store's terms before tracking it, and keep the check rate low.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
