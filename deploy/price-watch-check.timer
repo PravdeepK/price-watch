@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the Price Watch check every 30 minutes
+
+[Timer]
+OnCalendar=*:0/30
+RandomizedDelaySec=120
+# If the Pi was off at check time, check soon after it starts.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

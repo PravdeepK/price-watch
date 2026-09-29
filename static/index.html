@@ -1,0 +1,1316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Price Watch</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+<link rel="apple-touch-icon" href="/touch-icon-pricewatch.png">
+<meta name="apple-mobile-web-app-title" content="Price Watch">
+<meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+<style>
+  /* Same colours and building blocks as the Cineplex watcher's dashboard. */
+  :root {
+    --bg: #f6f5f2; --surface: #ffffff; --surface-2: #efede8; --border: #e2dfd8;
+    --text: #1d1b18; --muted: #6d6860; --accent: #1f5fd1; --accent-text: #ffffff;
+    --good: #1c7c43; --good-bg: #e2f3e8; --warn: #9a5b00; --warn-bg: #fbf0dc;
+    --bad: #b3261e; --bad-bg: #fbe4e2; --star: #e0a100;
+    --special: #7a3fc4; --special-bg: #efe6fb;
+    --radius: 12px; --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+    --pic-bg: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121212; --surface: #1c1c1e; --surface-2: #262628; --border: #333336;
+      --text: #f2f1ee; --muted: #a09c94; --accent: #6ea0ff; --accent-text: #0b1530;
+      --good: #6fd197; --good-bg: #173222; --warn: #f0b85c; --warn-bg: #3a2c12;
+      --bad: #ff8a80; --bad-bg: #3b1a18; --star: #ffcc33;
+      --special: #c7a4ff; --special-bg: #2d2140;
+      --shadow: 0 1px 2px rgba(0,0,0,.4);
+      --pic-bg: #f4f4f4;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121212; --surface: #1c1c1e; --surface-2: #262628; --border: #333336;
+    --text: #f2f1ee; --muted: #a09c94; --accent: #6ea0ff; --accent-text: #0b1530;
+    --good: #6fd197; --good-bg: #173222; --warn: #f0b85c; --warn-bg: #3a2c12;
+    --bad: #ff8a80; --bad-bg: #3b1a18; --star: #ffcc33;
+    --special: #c7a4ff; --special-bg: #2d2140;
+    --shadow: 0 1px 2px rgba(0,0,0,.4);
+    --pic-bg: #f4f4f4;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  button, input { font: inherit; color: inherit; }
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 0 16px 48px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  a { color: var(--accent); }
+
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 20px 0 12px; }
+  header h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--border); font-size: 13px; color: var(--muted);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.ok { background: var(--good); box-shadow: 0 0 0 3px var(--good-bg); }
+  .dot.warn { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-bg); }
+  .dot.bad { background: var(--bad); box-shadow: 0 0 0 3px var(--bad-bg); }
+  .dot.busy { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+  .spacer { flex: 1; }
+
+  nav { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; }
+  nav button {
+    background: none; border: 0; padding: 10px 14px; cursor: pointer; color: var(--muted);
+    border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font-weight: 500;
+  }
+  nav button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  nav .count { font-size: 12px; background: var(--surface-2); border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
+  nav .count.new { background: var(--accent); color: var(--accent-text); }
+  nav .count.bad { background: var(--bad-bg); color: var(--bad); }
+
+  .btn {
+    border: 1px solid var(--border); background: var(--surface); padding: 8px 14px; border-radius: 8px;
+    cursor: pointer; font-weight: 500; text-decoration: none; color: var(--text); display: inline-block;
+  }
+  .btn:hover { background: var(--surface-2); }
+  .btn.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  .btn.small { padding: 5px 10px; font-size: 13px; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.quiet { border-color: transparent; background: none; color: var(--muted); }
+  .btn.quiet:hover { color: var(--bad); background: var(--bad-bg); }
+
+  input[type=text], input[type=url], input[type=search], input[type=time], .input {
+    padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface); outline: none; min-width: 0;
+  }
+  input:focus { border-color: var(--accent); }
+
+  /* add a link */
+  .adder { display: flex; gap: 8px; margin-bottom: 12px; }
+  .adder input { flex: 1; padding: 12px 14px; }
+  .adder .btn { padding: 0 18px; }
+  .found { margin-bottom: 20px; }
+  .searchbox { position: relative; }
+  .results {
+    position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% - 4px);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: var(--shadow); max-height: 70vh; overflow-y: auto; display: none;
+  }
+  .results.open { display: block; }
+  .results .stores { display: flex; flex-wrap: wrap; gap: 4px; padding: 10px 12px; border-bottom: 1px solid var(--border);
+                     position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  .results .stores .toggle { font-size: 12px; padding: 3px 9px; }
+  .results .group { padding: 6px 12px 2px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+                    letter-spacing: .04em; display: flex; justify-content: space-between; gap: 8px; }
+  .results .group .m { font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .hit { display: flex; align-items: center; gap: 12px; padding: 7px 12px; cursor: pointer; }
+  .hit:hover, .hit.active { background: var(--surface-2); }
+  .hit .thumb { width: 44px; height: 44px; flex: none; border-radius: 6px; background: var(--pic-bg); object-fit: contain; padding: 2px; }
+  .hit .name { font-size: 14px; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .hit .p { margin-left: auto; text-align: right; white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; font-size: 14px; }
+  .hit .p .was { display: block; margin: 0; }
+  .results .none { padding: 4px 12px 10px; font-size: 13px; color: var(--muted); }
+  .found .pick { display: flex; gap: 14px; align-items: flex-start; }
+  .found .pick .pic { width: 96px; flex: none; border-radius: 8px; }
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 12px 0; }
+  .fields label, .field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  .fields input { width: 100%; }
+  .checks { display: grid; gap: 2px; margin: 8px 0; }
+  .check { display: flex; gap: 10px; align-items: center; padding: 6px 0; cursor: pointer; }
+  .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); flex: none; }
+  .check .p { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .stock { font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .stock.in { color: var(--good); } .stock.out { color: var(--bad); }
+
+  /* cards */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+  .grid > * { min-width: 0; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow);
+  }
+  .card.failing { border-color: var(--bad); }
+  .card.muted .pic img, .card.paused .pic img { filter: grayscale(1); opacity: .6; }
+  .pic { position: relative; aspect-ratio: 4 / 3; background: var(--pic-bg); }
+  .pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; padding: 10px; }
+  .pic .noimg { position: absolute; inset: 0; display: grid; place-items: center; font-size: 44px; opacity: .45; background: var(--surface-2); }
+  .mute {
+    position: absolute; top: 8px; left: 8px; width: 34px; height: 34px; border-radius: 50%;
+    border: 0; cursor: pointer; background: rgba(0,0,0,.55); color: #fff; font-size: 15px; line-height: 34px; opacity: .8;
+  }
+  .mute.on { background: var(--bad); opacity: 1; }
+  .site-tag {
+    position: absolute; top: 8px; right: 8px; font-size: 11px; font-weight: 600; padding: 3px 8px;
+    border-radius: 999px; background: rgba(0,0,0,.6); color: #fff;
+  }
+  .new-badge {
+    position: absolute; bottom: 8px; left: 8px; font-size: 11px; font-weight: 700; letter-spacing: .02em;
+    padding: 3px 8px; border-radius: 999px; background: var(--good); color: #fff;
+  }
+  .card .body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .card .title { font-weight: 600; font-size: 14px; line-height: 1.3; }
+  .card .title a { color: inherit; text-decoration: none; }
+  .card .title a:hover { text-decoration: underline; }
+  .price { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .price .from { font-size: 13px; font-weight: 500; color: var(--muted); margin-right: 4px; }
+  .was { text-decoration: line-through; color: var(--muted); font-size: 13px; font-weight: 400; margin-left: 6px; }
+  .eds { display: grid; gap: 2px; font-size: 13px; }
+  .eds > div { display: flex; justify-content: space-between; gap: 8px; }
+  .eds span:first-child { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .eds span:last-child { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .badges { display: flex; flex-wrap: wrap; gap: 4px; }
+  .badge { display: inline-block; font-size: 12px; padding: 3px 8px; border-radius: 6px; font-weight: 500; line-height: 1.35; }
+  .badge.good { background: var(--good-bg); color: var(--good); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); }
+  .badge.bad { background: var(--bad-bg); color: var(--bad); }
+  .badge.plain { background: var(--surface-2); color: var(--muted); }
+  .badge.special { background: var(--special-bg); color: var(--special); }
+  .facts { display: grid; gap: 3px; font-size: 13px; color: var(--muted); }
+  .facts > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .facts .bad { color: var(--bad); white-space: normal; }
+  .card .actions { display: flex; gap: 6px; margin-top: auto; padding-top: 4px; flex-wrap: wrap; }
+  .card .actions .btn.small { padding: 5px 9px; }
+  .card .actions .quiet { margin-left: auto; }
+  .chip { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .toolbar .filter-input { flex: 1 1 200px; padding: 9px 12px; }
+  .filter-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .filter-row .label { font-size: 12px; color: var(--muted); min-width: 40px; }
+  .toggle { border: 1px solid var(--border); background: var(--surface); padding: 5px 11px; border-radius: 999px; cursor: pointer; font-size: 13px; }
+  .toggle[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  .toggle .n { opacity: .65; font-size: 12px; margin-left: 3px; }
+  .summary { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+  .summary b { color: var(--good); }
+  .summary .bad { color: var(--bad); font-weight: 600; }
+
+  .empty { text-align: center; color: var(--muted); padding: 48px 16px; border: 1px dashed var(--border); border-radius: var(--radius); grid-column: 1 / -1; }
+  .hint { color: var(--muted); font-size: 13px; }
+  details.help { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  details.help summary { cursor: pointer; width: fit-content; }
+  details.help ul { margin: 6px 0 0; padding-left: 20px; }
+  details.help li { margin: 2px 0; }
+
+  /* panels, status tiles, log */
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 16px; }
+  .panel h3 { margin: 0 0 4px; font-size: 16px; }
+  .panel .sub, p.sub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+  .stat .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .stat .value { font-size: 16px; font-weight: 600; margin-top: 2px; word-break: break-word; }
+  .stat .value.ok { color: var(--good); } .stat .value.bad { color: var(--bad); } .stat .value.warn { color: var(--warn); }
+  .stat .sub { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
+  .meter { height: 6px; border-radius: 3px; background: var(--surface-2); margin-top: 6px; overflow: hidden; }
+  .meter > span { display: block; height: 100%; border-radius: 3px; background: var(--good); }
+  .meter > span.warn { background: var(--warn); } .meter > span.bad { background: var(--bad); }
+  h2.section { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 4px 0 8px; font-weight: 600; }
+  pre.log {
+    margin: 0; padding: 12px; background: var(--surface-2); border-radius: 8px; overflow-x: auto;
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 420px; overflow-y: auto;
+  }
+  .log .err { color: var(--bad); } .log .warn { color: var(--warn); } .log .good { color: var(--good); }
+  .log-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+
+  .switch { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; cursor: pointer; }
+  .switch input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent); flex: none; }
+  .switch .sub { display: block; margin: 0; color: var(--muted); font-size: 13px; }
+  .field-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 4px 0 8px; }
+  .field-row input[type="time"] { padding: 7px 10px; border-radius: 8px; }
+  .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .banner { padding: 12px 16px; border-radius: var(--radius); margin-bottom: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .banner.warn { background: var(--warn-bg); color: var(--warn); }
+  .banner.info { background: var(--special-bg); color: var(--special); }
+  .banner.bad { background: var(--bad-bg); color: var(--bad); }
+  .list { display: grid; gap: 6px; }
+  .list > div { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .list > div:last-child { border-bottom: 0; }
+  .list .t { font-weight: 500; } .list .m { font-size: 12px; color: var(--muted); }
+  code.topic { background: var(--surface-2); padding: 2px 6px; border-radius: 5px; font-size: 13px; word-break: break-all; }
+  .updated { font-size: 12px; color: var(--muted); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%) translateY(20px);
+    background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; opacity: 0;
+    transition: .2s; pointer-events: none; max-width: calc(100% - 32px); z-index: 50; font-size: 14px;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%); }
+  .toast.error { background: var(--bad); color: #fff; }
+  .toast.show:has(button) { pointer-events: auto; }
+  .toast button { margin-left: 12px; border: 0; background: none; color: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0; }
+
+  /* item settings dialog */
+  dialog#item-dialog {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+    padding: 0; width: min(560px, calc(100% - 32px)); max-height: min(88vh, 820px); box-shadow: var(--shadow);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.5); }
+  .md-head {
+    display: flex; gap: 14px; align-items: center; padding: 16px 18px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--surface); z-index: 1;
+  }
+  .md-head .pic { width: 64px; flex: none; border-radius: 8px; overflow: hidden; }
+  .md-head .pic img { padding: 4px; }
+  .md-head .pic .noimg { font-size: 26px; }
+  .md-head h3 { margin: 0 0 6px; font-size: 17px; line-height: 1.25; }
+  .md-head .x {
+    margin-left: auto; align-self: flex-start; border: 0; background: none; color: var(--muted);
+    font-size: 22px; line-height: 1; cursor: pointer; padding: 2px 4px; border-radius: 6px;
+  }
+  .md-head .x:hover { color: var(--text); background: var(--surface-2); }
+  .md-body { padding: 6px 18px 18px; }
+  .md-body h4 { margin: 18px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .ed-table { display: grid; gap: 8px; }
+  .ed-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; }
+  .ed-row .l { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ed-row .p { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .ed-row .m { font-size: 12px; color: var(--muted); }
+  .ed-row svg { grid-column: 2; justify-self: end; }
+  .spark { color: var(--accent); }
+  .result { font-size: 13px; background: var(--surface-2); border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
+  .result.bad { background: var(--bad-bg); color: var(--bad); }
+  .result.good { background: var(--good-bg); color: var(--good); }
+
+  dialog#keys {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+    padding: 20px 24px; box-shadow: var(--shadow); max-width: min(420px, calc(100% - 32px));
+  }
+  dialog#keys h3 { margin: 0 0 12px; }
+  dialog#keys dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0 0 16px; font-size: 14px; }
+  dialog#keys dt { white-space: nowrap; } dialog#keys dd { margin: 0; color: var(--muted); }
+  dialog#keys form { text-align: right; }
+  kbd {
+    font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 5px; border-radius: 4px;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--muted);
+  }
+  .keys-hint { display: none; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 0 4px; align-self: center; white-space: nowrap; }
+  .keys-hint:hover { color: var(--text); }
+  .to-top {
+    position: fixed; right: 20px; bottom: 20px; width: 42px; height: 42px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow);
+    cursor: pointer; font-size: 18px; z-index: 40;
+  }
+
+  /* placeholders while the first load is in flight */
+  .skeleton .pic, .skeleton .line { animation: pulse 1.2s ease-in-out infinite; }
+  .skeleton .pic { background: var(--surface-2); }
+  .skeleton .line { height: 12px; border-radius: 6px; background: var(--surface-2); }
+  .skeleton .line.short { width: 60%; }
+  @keyframes pulse { 50% { opacity: .5; } }
+  @media (prefers-reduced-motion: reduce) { .skeleton .pic, .skeleton .line, .dot.busy { animation: none; } }
+
+  @media (hover: hover) {
+    .keys-hint { display: inline; }
+    .card { transition: transform .15s ease, box-shadow .15s ease; }
+    .card:not(.skeleton):hover { transform: translateY(-3px); box-shadow: 0 2px 4px rgba(0,0,0,.08), 0 12px 28px rgba(0,0,0,.12); }
+    .card .mute:not(.on) { opacity: 0; transition: opacity .15s; }
+    .card:hover .mute, .card .mute:focus-visible { opacity: .85; }
+    .mute:hover { transform: scale(1.08); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card, .card .mute { transition: none; }
+    .card:not(.skeleton):hover { transform: none; }
+  }
+  @media (min-width: 768px) {
+    .top { position: sticky; top: 0; z-index: 20; background: var(--bg); }
+    .top nav { margin-bottom: 0; }
+    .top ~ section { padding-top: 20px; }
+  }
+  @media (min-width: 1024px) {
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    #alerts-root { columns: 2; column-gap: 16px; }
+    #alerts-root > * { break-inside: avoid; }
+    #alerts-root > .banner { column-span: all; }
+    pre.log { max-height: 60vh; }
+  }
+  @media (max-width: 560px) {
+    header h1 { font-size: 19px; }
+    header { row-gap: 8px; }
+    #status-pill { order: 5; }
+    .updated { display: none; }
+    /* On a phone each card is a row: picture on the left, details on the right. */
+    .grid { grid-template-columns: 1fr; gap: 10px; }
+    .card { display: grid; grid-template-columns: 104px minmax(0, 1fr); }
+    .card .pic { aspect-ratio: 1; align-self: start; margin: 10px 0 10px 10px; border-radius: 8px; overflow: hidden; }
+    .card .pic img { padding: 4px; }
+    .card .site-tag { display: none; }
+    .card .mute { width: 30px; height: 30px; line-height: 30px; font-size: 13px; top: 6px; left: 6px; }
+    .new-badge { bottom: 6px; left: 6px; right: 6px; text-align: center; padding: 3px 4px; font-size: 10px; }
+    .price { font-size: 20px; }
+    .filter-row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px 8px; padding: 0 16px; }
+    .filter-row::-webkit-scrollbar { display: none; }
+    .filter-row > * { flex: none; }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .found .pick .pic { width: 72px; }
+    pre.log { white-space: pre-wrap; word-break: break-word; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top" id="top">
+  <header>
+    <h1>💰 Price Watch</h1>
+    <span class="pill" id="status-pill"><span class="dot"></span><span>Loading…</span></span>
+    <span class="spacer"></span>
+    <span class="updated" id="updated"></span>
+    <button class="btn small" id="theme" title="Switch between automatic, light and dark theme"></button>
+    <button class="btn small" id="check-all" title="Check every price now">Check all</button>
+  </header>
+  <nav role="tablist">
+    <button role="tab" data-tab="watchlist" aria-selected="true">Watchlist <span class="count" id="count-items">0</span><span class="count bad" id="count-problems" hidden></span></button>
+    <button role="tab" data-tab="alerts" aria-selected="false">Alerts <span class="count new" id="count-held" hidden></span></button>
+    <button role="tab" data-tab="status" aria-selected="false">Status</button>
+    <span class="spacer"></span>
+    <button class="keys-hint" id="keys-open" title="Keyboard shortcuts">Shortcuts <kbd>?</kbd></button>
+  </nav>
+  </div>
+
+  <section id="tab-watchlist">
+    <div class="searchbox">
+      <form class="adder" id="adder">
+        <input id="add-url" type="search" placeholder="Search stores (e.g. samsung 990 pro) or paste a link" autocomplete="off" required
+               aria-controls="search-results" aria-autocomplete="list">
+        <button class="btn primary" id="add-test" type="submit">Go</button>
+      </form>
+      <div class="results" id="search-results" role="listbox"></div>
+    </div>
+    <div id="found"></div>
+    <details class="help" id="help">
+      <summary>How it works</summary>
+      <ul>
+        <li>Type what you want in the box at the top to search Best Buy, Walmart, Canadian Tire, Newegg, Canada Computers, Amazon, Steam and Bethesda Gear at once. Pick a result to add it. You can also paste any product link.</li>
+        <li>Prices are checked every 30 minutes. You get an alert on your phone when a price drops, or the first time it reaches your <b>target</b>.</li>
+        <li><b>Minimum drop</b> (in Settings on each card) skips small changes: <code>5</code> means $5 or more, <code>5%</code> means 5 percent or more.</li>
+        <li>Games with several editions are one card. Each edition has its own price and alerts.</li>
+        <li>🔔 on a picture mutes an item: still checked, no alerts. <b>Pause</b> (in Settings) stops checking it.</li>
+        <li>🛒 On Shopify stores (for example Bethesda Gear), alerts and cards have <b>Buy now</b> (straight to guest checkout) and <b>Add to cart</b> buttons. You still finish checkout yourself.</li>
+        <li>📦 <b>Back in stock alert</b> (when adding, or in Settings): an urgent alert when a sold out item can be bought again. Works on stores that show stock (Shopify shops, Best Buy, Canadian Tire, Walmart, Newegg, Amazon, and most stores with product data).</li>
+        <li>If a price cannot be read, you get one "Cannot read" alert. Open Settings on the card to fix it with a CSS selector.</li>
+        <li>Links must be Canadian stores in CAD. Other links can still be added with <b>Test it anyway</b>.</li>
+        <li>Press <kbd>/</kbd> to paste a link, <kbd>1</kbd>–<kbd>3</kbd> to switch tabs, <kbd>?</kbd> for all shortcuts.</li>
+      </ul>
+    </details>
+    <div id="filters"></div>
+    <p class="summary" id="summary"></p>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section id="tab-alerts" hidden>
+    <div id="alerts-root"></div>
+  </section>
+
+  <section id="tab-status" hidden>
+    <div class="cols">
+      <div><h2 class="section">Price Watch</h2>
+        <div class="panel"><div class="stats" id="stats"></div></div></div>
+      <div><h2 class="section">Raspberry Pi</h2>
+        <div class="panel"><div class="stats" id="pi-stats"></div></div></div>
+    </div>
+    <div class="panel" id="share-panel"></div>
+    <div class="panel">
+      <div class="log-bar"><h2 class="section" style="margin:0">Recent log</h2>
+        <button class="toggle" id="log-problems" aria-pressed="false">Problems only</button></div>
+      <pre class="log" id="log"></pre>
+      <p class="sub" style="margin:8px 0 0">The log starts again whenever the Pi restarts.</p>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+<button class="to-top" id="to-top" title="Back to top" aria-label="Back to top" hidden>↑</button>
+<dialog id="item-dialog" aria-labelledby="item-dialog-title"><div id="item-dialog-body"></div></dialog>
+<dialog id="keys">
+  <h3>Keyboard shortcuts</h3>
+  <dl>
+    <dt><kbd>1</kbd>–<kbd>3</kbd></dt><dd>Watchlist, Alerts, Status</dd>
+    <dt><kbd>/</kbd></dt><dd>Search stores or paste a link</dd>
+    <dt><kbd>f</kbd></dt><dd>Filter the watchlist</dd>
+    <dt><kbd>r</kbd></dt><dd>Check all prices now</dd>
+    <dt><kbd>t</kbd></dt><dd>Switch theme</dd>
+    <dt><kbd>?</kbd></dt><dd>This list</dd>
+    <dt><kbd>Esc</kbd></dt><dd>Close / leave a text box</dd>
+  </dl>
+  <form method="dialog"><button class="btn small">Close</button></form>
+</dialog>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+let state = null;
+
+// Small element builder; text always goes in via textContent, never as HTML.
+function h(tag, attrs = {}, ...children) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null) continue;
+    if (k.startsWith("aria-") && typeof v === "boolean") { el.setAttribute(k, String(v)); continue; }
+    if (v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of children.flat(Infinity)) {
+    if (c == null || c === false) continue;
+    el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return el;
+}
+
+// localStorage can be missing or blocked; never let that break the page.
+const saved = {
+  get(key, fallback = null) { try { const v = localStorage.getItem("pricewatch-" + key); return v == null ? fallback : JSON.parse(v); } catch { return fallback; } },
+  set(key, value) { try { localStorage.setItem("pricewatch-" + key, JSON.stringify(value)); } catch {} },
+};
+
+// A message at the bottom of the screen, optionally with a button such as Undo.
+let toastTimer;
+function toast(msg, isError = false, action = null) {
+  const t = $("#toast");
+  const host = document.querySelector("dialog[open]") || document.body;
+  if (t.parentNode !== host) host.append(t);
+  t.replaceChildren(msg, action ? h("button", { onclick: () => { t.className = "toast"; action.run(); } }, action.label) : "");
+  t.className = "toast show" + (isError ? " error" : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (t.className = "toast"), action ? 6000 : 3500);
+}
+
+async function api(path, body) {
+  const opts = body === undefined ? {} : {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  };
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({ error: `Request failed (${res.status})` }));
+  if (!res.ok || data.error) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+// ---- formatting ----
+const money = (cents, cur) => {
+  if (cents == null) return "--";
+  if (cents === 0) return "Free";
+  const s = "$" + (cents / 100).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return cur && cur !== "CAD" ? `${s} ${cur}` : s;
+};
+const clock = (iso) => iso ? new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+function when(iso) {
+  if (!iso) return "never";
+  const d = new Date(iso), today = new Date();
+  if (d.toDateString() === today.toDateString()) return "today " + clock(iso);
+  const y = new Date(today); y.setDate(today.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return "yesterday " + clock(iso);
+  return d.toLocaleDateString([], { month: "short", day: "numeric" }) + ", " + clock(iso);
+}
+function ago(iso) {
+  if (!iso) return "never";
+  const m = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const hrs = Math.round(m / 60);
+  return hrs < 24 ? `${hrs} h ago` : when(iso);
+}
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const describeMinDrop = (d) => !d ? "any drop" : d.endsWith("%") ? `drops of ${d}` : `drops of $${d}`;
+
+// ---- what an item looks like right now ----
+const OK_KINDS = ["ok", "new", "no_price", "partial"];
+const failing = (it) => !OK_KINDS.includes(it.status_kind);
+const priced = (it) => it.editions.filter((e) => e.price != null);
+const cheapest = (it) => priced(it).reduce((a, e) => (a == null || e.price < a.price ? e : a), null);
+const atTarget = (it) => it.target != null && priced(it).some((e) => e.price <= it.target);
+const discount = (it) => Math.max(0, ...priced(it).filter((e) => e.regular && e.regular > e.price)
+  .map((e) => Math.round((1 - e.price / e.regular) * 100)));
+const siteIcon = (it) => /steam|playstation/i.test(it.site) ? "🎮" : "🛒";
+
+// true when every edition the store reports on is out of stock, false if any is in stock, null if unknown
+const outOfStock = (it) => {
+  const known = it.editions.filter((e) => e.in_stock != null);
+  return known.length ? known.every((e) => e.in_stock === false) : null;
+};
+const stockTag = (v) => v == null ? null : h("span", { class: "stock " + (v ? "in" : "out") }, v ? " In stock" : " Out of stock");
+
+function badges(it) {
+  const out = [];
+  if (failing(it)) out.push(["bad", "Problem"]);
+  if (it.paused) out.push(["plain", "⏸ Paused"]);
+  if (it.muted) out.push(["bad", "🔕 Muted"]);
+  if (it.status_kind === "new") out.push(["plain", "Getting price…"]);
+  if (it.status_kind === "no_price") out.push(["warn", "No price yet"]);
+  if (outOfStock(it) === true) out.push(["bad", "⛔ Out of stock"]);
+  if (it.stock_alert) out.push(["special", "📦 Stock alert"]);
+  if (atTarget(it)) out.push(["good", "🎯 At target"]);
+  const off = discount(it);
+  if (off) out.push(["good", `On sale −${off}%`]);
+  if (it.allow_foreign) out.push(["special", "Not Canadian"]);
+  return out.map(([cls, text]) => h("span", { class: "badge " + cls }, text));
+}
+
+// Prices that went down since this browser last opened the page. The first
+// visit only records prices. Remembered per browser.
+let lastSeen = null;
+function trackDrops() {
+  const now = {};
+  for (const it of state.items) for (const e of it.editions) if (e.price != null) now[it.id + "|" + e.key] = e.price;
+  if (lastSeen === null) lastSeen = saved.get("seen", now);
+  saved.set("seen", now);
+}
+function droppedBy(it) {
+  let best = 0;
+  for (const e of it.editions) {
+    const before = lastSeen?.[it.id + "|" + e.key];
+    if (before != null && e.price != null && e.price < before) best = Math.max(best, before - e.price);
+  }
+  return best;
+}
+
+function pic(it, big = false) {
+  const p = h("div", { class: "pic" },
+    it.image ? h("img", { src: it.image, alt: "", loading: "lazy", referrerpolicy: "no-referrer",
+      onerror: (e) => e.currentTarget.replaceWith(h("div", { class: "noimg" }, siteIcon(it))) })
+      : h("div", { class: "noimg" }, siteIcon(it)));
+  return p;
+}
+
+// ---- loading ----
+let lastLoad = 0, pollTimer = null;
+async function load() {
+  try {
+    state = await api("/api/dashboard");
+    lastLoad = Date.now();
+    trackDrops();
+    render();
+  } catch (e) {
+    toast(e.message, true);
+    if (!state) showLoadError(e.message);
+  }
+  // While a check is running, look again every few seconds; otherwise every minute.
+  clearTimeout(pollTimer);
+  pollTimer = setTimeout(() => { if (!document.hidden) load(); }, state?.status.running ? 3000 : 60000);
+}
+
+function showSkeletons() {
+  const card = () => h("div", { class: "card skeleton" }, h("div", { class: "pic" }),
+    h("div", { class: "body" }, h("div", { class: "line" }), h("div", { class: "line short" })));
+  $("#grid").replaceChildren(...Array.from({ length: 3 }, card));
+}
+function showLoadError(message) {
+  $("#grid").replaceChildren(h("div", { class: "empty" }, "Couldn't load: " + message + " ",
+    h("button", { class: "btn small", onclick: () => { showSkeletons(); load(); } }, "Try again")));
+}
+
+function render() {
+  const s = state.status;
+  const next = s.next_check ? new Date(s.next_check) : null;
+  const overdue = next && Date.now() - next > 10 * 60000;
+  const stopped = s.timer !== "active";
+  const pill = $("#status-pill");
+  pill.replaceChildren(
+    h("span", { class: "dot " + (s.running ? "busy" : stopped ? "bad" : overdue ? "warn" : "ok") }),
+    h("span", {}, s.running ? "Checking prices…" : stopped ? "Price checks are off"
+      : overdue ? "Check overdue" : `Watching · next check ${clock(s.next_check)}`));
+  pill.title = stopped ? "The 30 minute timer is not running. See the Status tab." : "";
+  $("#updated").textContent = s.last_run ? "Last check " + ago(s.last_run.finished) : "";
+  const btn = $("#check-all");
+  btn.disabled = s.running;
+  btn.textContent = s.running ? "Checking…" : "Check all";
+
+  const problems = state.items.filter(failing).length;
+  $("#count-items").textContent = state.items.length;
+  $("#count-problems").hidden = !problems;
+  $("#count-problems").textContent = `${problems} ⚠`;
+  $("#count-held").hidden = !state.held.length && !state.settings.snoozed;
+  $("#count-held").textContent = state.settings.snoozed ? "⏸" : state.held.length;
+
+  renderWatchlist();
+  if (!$("#alerts-root").contains(document.activeElement)) renderAlerts();
+  renderStatus();
+  if (itemDialog.open) {
+    const it = state.items.find((i) => i.id === dialogItemId);
+    if (!it) itemDialog.close();
+    else if (!itemDialog.contains(document.activeElement) || document.activeElement.tagName === "BUTTON") renderItemDialog(it);
+  }
+}
+
+// ---- watchlist ----
+const view = Object.assign({ site: "", attention: false, sort: "name", q: "" }, saved.get("view", {}));
+view.q = "";
+const SORTS = [["name", "Name"], ["site", "Site"], ["target", "Closest to target"], ["discount", "Biggest discount"]];
+
+function renderWatchlist() {
+  const items = state.items;
+  const sites = {};
+  for (const it of items) sites[it.site] = (sites[it.site] || 0) + 1;
+  if (view.site && !sites[view.site]) view.site = "";
+  const setView = (k, v) => { view[k] = v; saved.set("view", { ...view, q: "" }); renderWatchlist(); };
+  const toggle = (label, on, onclick, n) => h("button", { class: "toggle", "aria-pressed": on, onclick }, label, n != null ? h("span", { class: "n" }, n) : null);
+  const problems = items.filter(failing).length;
+
+  $("#filters").replaceChildren(items.length > 1 ? h("div", {},
+    h("div", { class: "toolbar" },
+      h("input", { class: "filter-input", id: "filter", type: "search", placeholder: "Filter by name", value: view.q,
+        oninput: (e) => { view.q = e.currentTarget.value; renderGrid(); } })),
+    Object.keys(sites).length > 1 || problems ? h("div", { class: "filter-row", role: "group", "aria-label": "Site" },
+      h("span", { class: "label" }, "Site"),
+      toggle("All", !view.site && !view.attention, () => { view.attention = false; setView("site", ""); }, items.length),
+      Object.entries(sites).sort().map(([s, n]) => toggle(s, view.site === s, () => setView("site", view.site === s ? "" : s), n)),
+      problems ? toggle("⚠ Needs attention", view.attention, () => setView("attention", !view.attention), problems) : null) : null,
+    h("div", { class: "filter-row", role: "group", "aria-label": "Sort" },
+      h("span", { class: "label" }, "Sort"),
+      SORTS.map(([k, label]) => toggle(label, view.sort === k, () => setView("sort", k)))),
+  ) : "");
+  renderGrid();
+}
+
+function renderGrid() {
+  const grid = $("#grid");
+  const items = state.items;
+  const q = view.q.trim().toLowerCase();
+  let shown = items.filter((it) => (!view.site || it.site === view.site) && (!view.attention || failing(it)) &&
+    (!q || it.name.toLowerCase().includes(q)));
+  const closeness = (it) => it.target == null || !cheapest(it) ? Infinity : cheapest(it).price / it.target;
+  const by = {
+    name: (a, b) => a.name.localeCompare(b.name),
+    site: (a, b) => a.site.localeCompare(b.site) || a.name.localeCompare(b.name),
+    target: (a, b) => closeness(a) - closeness(b),
+    discount: (a, b) => discount(b) - discount(a),
+  }[view.sort] || ((a, b) => a.name.localeCompare(b.name));
+  shown = [...shown].sort(by);
+
+  const onSale = items.filter((it) => discount(it) > 0).length;
+  const target = items.filter(atTarget).length;
+  const problems = items.filter(failing).length;
+  const bits = [plural(items.length, "item")];
+  if (onSale) bits.push(h("b", {}, `${onSale} on sale`));
+  if (target) bits.push(h("b", {}, `${target} at target`));
+  if (problems) bits.push(h("span", { class: "bad" }, `${problems} need${problems === 1 ? "s" : ""} attention`));
+  if (shown.length !== items.length) bits.push(`showing ${shown.length}`);
+  $("#summary").replaceChildren(...(items.length ? bits.flatMap((b, i) => [i ? " · " : "", b]) : []));
+
+  if (!items.length) {
+    grid.replaceChildren(h("div", { class: "empty" }, "Nothing on the watchlist yet. Paste a product link above to start."));
+    return;
+  }
+  if (!shown.length) {
+    grid.replaceChildren(h("div", { class: "empty" }, "Nothing matches. ",
+      h("button", { class: "btn small", onclick: () => { view.site = ""; view.attention = false; view.q = ""; renderWatchlist(); } }, "Show everything")));
+    return;
+  }
+  grid.replaceChildren(...shown.map(card));
+}
+
+function card(it) {
+  const p = pic(it);
+  p.append(h("span", { class: "site-tag" }, it.site));
+  p.append(h("button", {
+    class: "mute" + (it.muted ? " on" : ""),
+    title: it.muted ? "Unmute: send alerts for this again" : "Mute: keep checking, but no alerts",
+    "aria-label": it.muted ? "Unmute alerts" : "Mute alerts",
+    onclick: () => update(it.id, { muted: !it.muted }),
+  }, it.muted ? "🔕" : "🔔"));
+  const dropped = droppedBy(it);
+  if (dropped) p.append(h("span", { class: "new-badge", title: "Lower than when you last opened this page" }, `↓ ${money(dropped)} since last visit`));
+
+  const eds = it.editions;
+  const low = cheapest(it);
+  let priceLine;
+  if (eds.length === 1) {
+    const e = eds[0];
+    priceLine = h("div", { class: "price" }, money(e.price, e.currency), e.regular ? h("span", { class: "was" }, money(e.regular, e.currency)) : null);
+  } else {
+    priceLine = h("div", { class: "price" }, low ? [h("span", { class: "from" }, "from"), money(low.price, low.currency)] : "--");
+  }
+  const facts = [];
+  if (it.target != null) facts.push(`🎯 Target ${money(it.target, low?.currency)}`);
+  facts.push(`📉 Alerts on ${describeMinDrop(it.min_drop)}`);
+  const lowest = eds.length === 1 ? eds[0].lowest_price : null;
+  if (lowest != null && lowest !== eds[0].price) facts.push(`Lowest seen ${money(lowest, eds[0].currency)}`);
+  const note = eds.length === 1 && eds[0].note ? eds[0].note : "";
+
+  return h("div", { class: "card" + (failing(it) ? " failing" : "") + (it.muted ? " muted" : "") + (it.paused ? " paused" : "") }, p,
+    h("div", { class: "body" },
+      h("div", { class: "title" }, h("a", { href: it.url, target: "_blank", rel: "noopener noreferrer" }, it.name)),
+      priceLine,
+      eds.length > 1 ? h("div", { class: "eds" }, eds.map((e) => h("div", {},
+        h("span", { title: e.label }, e.label || "Main"),
+        h("span", {}, e.in_stock === false ? h("span", { class: "stock out" }, "sold out ") : null,
+          money(e.price, e.currency), e.regular ? h("span", { class: "was" }, money(e.regular, e.currency)) : null)))) : null,
+      h("div", { class: "badges" }, badges(it)),
+      h("div", { class: "facts" },
+        facts.map((f) => h("div", { title: f }, f)),
+        note ? h("div", { title: note }, note) : null,
+        failing(it) ? h("div", { class: "bad" }, "⚠ " + it.status) : null,
+        h("div", {}, it.last_checked ? `Checked ${ago(it.last_checked)}` : "Not checked yet")),
+      buyRow(it),
+      h("div", { class: "actions" },
+        h("button", { class: "btn small" + (failing(it) ? " primary" : ""), onclick: () => openItem(it.id) }, failing(it) ? "Fix" : "Settings"),
+        h("button", { class: "btn small", disabled: state.status.running, onclick: () => checkNow([it.id]) }, "Check"),
+        h("button", { class: "btn small quiet", onclick: () => remove(it) }, "Remove"))));
+}
+
+// One-tap Buy now / Add to cart links (Shopify stores). They open the store on
+// this device; nothing is bought unless you finish checkout.
+function buyRow(it, all = false) {
+  const eds = it.editions.filter((e) => e.cart?.length && e.in_stock !== false);
+  if (!eds.length) return null;
+  const shown = all ? eds : eds.slice(0, 1);
+  return h("div", { class: "opts" }, shown.map((e) => [
+    h("a", { class: "btn small primary", href: e.cart[0][1], target: "_blank", rel: "noopener noreferrer",
+      title: "Opens checkout with this in it. Guest checkout works; nothing is bought until you finish." },
+      "🛒 " + e.cart[0][0] + (eds.length > 1 && e.label ? ` (${e.label})` : "")),
+    h("a", { class: "btn small", href: e.cart[1][1], target: "_blank", rel: "noopener noreferrer" }, e.cart[1][0]),
+  ]));
+}
+
+// ---- actions ----
+function saveThen(path, body) {
+  return api(path, body)
+    .then((res) => { toast(res.message); return load(); })
+    .catch((e) => { toast(e.message, true); return load(); });
+}
+const update = (id, changes) => saveThen("/api/items/update", { id, changes });
+function checkNow(ids) { return saveThen("/api/check", { ids }); }
+
+async function remove(it) {
+  try {
+    const res = await api("/api/items/remove", { id: it.id });
+    if (itemDialog.open) itemDialog.close();
+    toast(res.message, false, { label: "Undo", run: () => saveThen("/api/items/restore", { item: res.item }) });
+    await load();
+  } catch (e) { toast(e.message, true); load(); }
+}
+
+// ---- adding a link: Test, then pick editions and Save ----
+let found = null;
+async function testLink(url, extra = {}) {
+  const btn = $("#add-test");
+  btn.disabled = true; btn.textContent = "Testing…";
+  $("#found").replaceChildren(h("div", { class: "panel" }, h("span", { class: "hint" }, "Reading the price from the page…")));
+  try {
+    const { result } = await api("/api/test", { url, ...extra });
+    found = { url, result, ...extra };
+    renderFound();
+  } catch (e) {
+    $("#found").replaceChildren();
+    toast(e.message, true);
+  } finally { btn.disabled = false; btn.textContent = "Test"; }
+}
+
+function renderFound() {
+  const box = $("#found");
+  if (!found) { box.replaceChildren(); return; }
+  const { url, result: r } = found;
+  const close = h("button", { class: "btn small", type: "button", onclick: () => { found = null; renderFound(); } }, "Cancel");
+
+  if (r.kind === "not_canadian") {
+    box.replaceChildren(h("div", { class: "panel found" },
+      h("h3", {}, "Not a Canadian listing"),
+      h("p", { class: "sub" }, r.status),
+      h("div", { class: "opts" },
+        r.suggestion ? h("button", { class: "btn primary", onclick: () => { $("#add-url").value = r.suggestion; testLink(r.suggestion); } }, "Test the Canadian link") : null,
+        h("button", { class: "btn", onclick: () => testLink(url, { allow_foreign: true }) }, "Test it anyway"),
+        close),
+      h("p", { class: "sub", style: "margin:10px 0 0" }, "\"Test it anyway\" tracks it in the store's own currency (for example USD), not converted to CAD.")));
+    return;
+  }
+
+  const nameIn = h("input", { type: "text", value: r.name || new URL(url).hostname });
+  const targetIn = h("input", { type: "text", inputmode: "decimal", placeholder: "e.g. 49.99" });
+  const dropIn = h("input", { type: "text", placeholder: "5 or 5%" });
+  const selIn = h("input", { type: "text", placeholder: ".price", value: found.selector || "" });
+  const boxes = r.offers.map((o) => h("input", { type: "checkbox", checked: r.offers.length === 1 || o.suggested }));
+  const stockKnown = r.offers.some((o) => o.in_stock != null);
+  const stockBox = h("input", { type: "checkbox", checked: r.offers.some((o) => o.in_stock === false) });
+
+  const save = async (e) => {
+    const b = e.currentTarget; b.disabled = true;
+    const editions = r.offers.filter((o, i) => boxes[i].checked).map((o) => [o.key, o.label]);
+    if (r.offers.length > 1 && !editions.length) { toast("Tick at least one edition.", true); b.disabled = false; return; }
+    try {
+      const res = await api("/api/items/add", {
+        url, name: nameIn.value, editions, target: targetIn.value, min_drop: dropIn.value,
+        selector: found.selector || "", allow_foreign: !!found.allow_foreign, found: r.ok, image: r.image,
+        stock_alert: stockBox.checked,
+      });
+      toast(res.message);
+      found = null; renderFound(); $("#add-url").value = "";
+      await load();
+    } catch (err) { toast(err.message, true); b.disabled = false; }
+  };
+
+  const loose = r.ok && /^text/.test(r.method);
+  const status = r.ok
+    ? h("div", { class: "result " + (loose ? "" : "good") }, r.offers.length ? `Found ${plural(r.offers.length, "price")} (found by ${r.method}).` : r.status,
+        loose ? " This site has no price data, so the price was found by searching the page text. Check it matches the store page; if not, use a CSS selector." : "")
+    : h("div", { class: "result bad" }, `No price found: ${r.status}.`);
+
+  box.replaceChildren(h("div", { class: "panel found" },
+    h("div", { class: "pick" },
+      r.image ? h("div", { class: "pic" }, h("img", { src: r.image, alt: "", referrerpolicy: "no-referrer" })) : null,
+      h("div", { style: "flex:1;min-width:0" },
+        h("h3", {}, r.name || "Add this link"),
+        found.allow_foreign ? h("span", { class: "badge special" }, "Not Canadian: tracked in its own currency") : null,
+        status)),
+    r.offers.length > 1 ? [h("h4", { class: "hint", style: "margin:14px 0 0" }, "Track these (they stay together as one card)"),
+      h("div", { class: "checks" }, r.offers.map((o, i) => h("label", { class: "check" }, boxes[i],
+        h("span", {}, o.label || o.key, stockTag(o.in_stock), o.note ? h("span", { class: "hint" }, " · " + o.note) : null),
+        h("span", { class: "p" }, money(o.price, o.currency), o.regular ? h("span", { class: "was" }, money(o.regular, o.currency)) : null))))]
+      : r.offers.length === 1 ? h("div", { class: "checks" }, h("div", { class: "check", style: "cursor:default" },
+          h("span", {}, "Current price", stockTag(r.offers[0].in_stock), r.offers[0].note ? h("span", { class: "hint" }, " · " + r.offers[0].note) : null),
+          h("span", { class: "p" }, money(r.offers[0].price, r.offers[0].currency),
+            r.offers[0].regular ? h("span", { class: "was" }, money(r.offers[0].regular, r.offers[0].currency)) : null))) : null,
+    !r.ok || loose ? h("div", { class: "fields" },
+      h("label", {}, "CSS selector for the price", selIn),
+      h("div", { class: "field", style: "align-self:end" },
+        h("button", { class: "btn", onclick: () => testLink(url, { selector: selIn.value.trim(), allow_foreign: found.allow_foreign }) }, "Test with selector"))) : null,
+    !r.ok ? h("p", { class: "sub" }, "In a desktop browser, right-click the price, choose Inspect, and copy its class (.price) or id (#price). You can also save it as is: it keeps being checked, without a \"Cannot read\" alert until it has worked once.") : null,
+    h("div", { class: "fields" },
+      h("label", {}, "Name", nameIn),
+      h("label", {}, "Target price (optional)", targetIn),
+      h("label", {}, "Minimum drop (optional)", dropIn)),
+    h("label", { class: "switch" }, stockBox, h("span", {}, h("b", {}, "📦 Alert me when it's back in stock"),
+      h("span", { class: "sub" }, stockKnown ? "An urgent alert the moment an out of stock item can be bought again."
+        : "This store does not show stock on the page, so this alert may never fire here."))),
+    h("div", { class: "opts" },
+      h("button", { class: "btn primary", onclick: save }, r.ok ? "Add to watchlist" : "Add anyway"),
+      close)));
+  nameIn.focus();
+}
+
+// ---- search the stores as you type ----
+// Every store is asked at once; each group fills in as its store answers.
+const addBox = $("#add-url"), resultsBox = $("#search-results");
+const looksLikeLink = (v) => /^https?:\/\//i.test(v) || /^[\w-]+(\.[\w-]+)+\//.test(v);
+let searchStores = [], searchSeq = 0, searchTimer, searchState = {}, activeRow = -1;
+const chosenStores = new Set(saved.get("search-stores", []));
+api("/api/search/stores").then((list) => {
+  searchStores = list;
+  if (!chosenStores.size) list.forEach((s) => chosenStores.add(s.key));
+  // A search in the address, for example /?q=ssd, starts straight away.
+  const q = new URLSearchParams(location.search).get("q");
+  if (q) { showTab("watchlist"); addBox.value = q; addBox.focus(); runSearch(q); }
+}).catch(() => {});
+
+function runSearch(q) {
+  const seq = ++searchSeq;
+  searchState = {};
+  activeRow = -1;
+  for (const s of searchStores) {
+    if (!chosenStores.has(s.key)) continue;
+    searchState[s.key] = { name: s.name, loading: true };
+    fetch(`/api/search?store=${encodeURIComponent(s.key)}&q=${encodeURIComponent(q)}`)
+      .then((r) => r.json())
+      .then((a) => { if (seq === searchSeq) { searchState[s.key] = { name: s.name, ...a }; renderResults(); } })
+      .catch(() => { if (seq === searchSeq) { searchState[s.key] = { name: s.name, results: [], error: "no answer" }; renderResults(); } });
+  }
+  renderResults();
+}
+
+function resultRows() {
+  return searchStores.filter((s) => searchState[s.key]).flatMap((s) => (searchState[s.key].results || []).map((r) => r));
+}
+
+function renderResults() {
+  const q = addBox.value.trim();
+  if (!q || looksLikeLink(q) || q.length < 3) { resultsBox.classList.remove("open"); return; }
+  const rows = resultRows();
+  let i = -1;
+  const storeChips = h("div", { class: "stores", onmousedown: (e) => e.preventDefault() },
+    searchStores.map((s) => h("button", { class: "toggle", type: "button", "aria-pressed": chosenStores.has(s.key),
+      onclick: () => {
+        chosenStores.has(s.key) ? chosenStores.delete(s.key) : chosenStores.add(s.key);
+        if (!chosenStores.size) chosenStores.add(s.key);
+        saved.set("search-stores", [...chosenStores]);
+        runSearch(q);
+      } }, s.name.replace(" (USD)", ""))));
+  const groups = searchStores.filter((s) => searchState[s.key]).map((s) => {
+    const st = searchState[s.key];
+    const head = h("div", { class: "group" }, st.name,
+      h("span", { class: "m" }, st.loading ? "searching…" : st.error ? "" : `${st.results.length} found`));
+    if (st.loading) return head;
+    if (st.error) return [head, h("div", { class: "none" }, "Could not search: " + st.error)];
+    if (!st.results.length) return [head, h("div", { class: "none" }, "Nothing found.")];
+    return [head, st.results.map((r) => {
+      i += 1;
+      const n = i;
+      return h("div", { class: "hit" + (n === activeRow ? " active" : ""), role: "option",
+          onmousedown: (e) => { e.preventDefault(); pickResult(r); } },
+        r.image ? h("img", { class: "thumb", src: r.image, alt: "", loading: "lazy", referrerpolicy: "no-referrer" }) : h("div", { class: "thumb" }),
+        h("div", { style: "min-width:0" }, h("div", { class: "name" }, r.name),
+          r.in_stock === false ? h("span", { class: "stock out" }, "Out of stock") : null),
+        h("div", { class: "p" }, money(r.price, r.currency), r.regular ? h("span", { class: "was" }, money(r.regular, r.currency)) : null));
+    })];
+  });
+  resultsBox.replaceChildren(storeChips, ...groups.flat(Infinity).filter(Boolean));
+  resultsBox.classList.add("open");
+  resultsBox.querySelector(".hit.active")?.scrollIntoView({ block: "nearest" });
+  if (!rows.length && activeRow !== -1) activeRow = -1;
+}
+
+function pickResult(r) {
+  resultsBox.classList.remove("open");
+  addBox.value = r.url;
+  // A result priced in another currency was picked on purpose: test it as such.
+  testLink(r.url, r.currency && r.currency !== "CAD" ? { allow_foreign: true } : {});
+}
+
+addBox.addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  const q = addBox.value.trim();
+  if (!q || looksLikeLink(q) || q.length < 3) { searchSeq++; resultsBox.classList.remove("open"); return; }
+  searchTimer = setTimeout(() => runSearch(q), 600);
+});
+addBox.addEventListener("keydown", (e) => {
+  const rows = resultRows();
+  if (!resultsBox.classList.contains("open") || !rows.length) return;
+  if (e.key === "ArrowDown") { activeRow = (activeRow + 1) % rows.length; renderResults(); e.preventDefault(); }
+  else if (e.key === "ArrowUp") { activeRow = (activeRow - 1 + rows.length) % rows.length; renderResults(); e.preventDefault(); }
+  else if (e.key === "Enter" && activeRow >= 0) { pickResult(rows[activeRow]); e.preventDefault(); }
+  else if (e.key === "Escape") { resultsBox.classList.remove("open"); }
+});
+addBox.addEventListener("focus", () => { if (Object.keys(searchState).length) renderResults(); });
+addBox.addEventListener("blur", () => setTimeout(() => resultsBox.classList.remove("open"), 150));
+
+$("#adder").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const v = addBox.value.trim();
+  if (!v) return;
+  if (looksLikeLink(v)) { resultsBox.classList.remove("open"); testLink(/^https?:/i.test(v) ? v : "https://" + v); }
+  else { clearTimeout(searchTimer); runSearch(v); }
+});
+
+// ---- item settings dialog ----
+const itemDialog = $("#item-dialog");
+let dialogItemId = null;
+function openItem(id) {
+  const it = state?.items.find((i) => i.id === id);
+  if (!it) return;
+  dialogItemId = id;
+  selectorResult = null;
+  renderItemDialog(it);
+  if (!itemDialog.open) itemDialog.showModal();
+}
+itemDialog.addEventListener("click", (e) => { if (e.target === itemDialog) itemDialog.close(); });
+itemDialog.addEventListener("close", () => { if (location.hash.startsWith("#item-")) history.replaceState(null, "", "#watchlist"); });
+
+// A tiny line chart of the last prices.
+function sparkline(history) {
+  const pts = (history || []).map((p) => p[1]).filter((p) => p != null);
+  if (pts.length < 2) return null;
+  const w = 110, hgt = 26, lo = Math.min(...pts), hi = Math.max(...pts), span = hi - lo || 1;
+  const xy = pts.map((p, i) => `${(i / (pts.length - 1) * (w - 4) + 2).toFixed(1)},${(hgt - 3 - (p - lo) / span * (hgt - 6)).toFixed(1)}`);
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", `0 0 ${w} ${hgt}`); svg.setAttribute("width", w); svg.setAttribute("height", hgt);
+  svg.setAttribute("class", "spark"); svg.setAttribute("aria-hidden", "true");
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  line.setAttribute("points", xy.join(" ")); line.setAttribute("fill", "none");
+  line.setAttribute("stroke", "currentColor"); line.setAttribute("stroke-width", "2"); line.setAttribute("stroke-linejoin", "round");
+  svg.append(line);
+  return svg;
+}
+
+let selectorResult = null;
+function renderItemDialog(it) {
+  const body = $("#item-dialog-body");
+  const scroll = itemDialog.scrollTop;
+  const cur = it.editions[0]?.currency;
+  const nameIn = h("input", { type: "text", value: it.name });
+  const targetIn = h("input", { type: "text", inputmode: "decimal", placeholder: "e.g. 49.99", value: it.target != null ? (it.target / 100).toFixed(2) : "" });
+  const dropIn = h("input", { type: "text", placeholder: "5 or 5%", value: it.min_drop || "" });
+  const selIn = h("input", { type: "text", placeholder: ".price", value: it.selector || "" });
+  const keep = it.editions.map(() => h("input", { type: "checkbox", checked: true }));
+
+  const testSelector = async (e) => {
+    const b = e.currentTarget; b.disabled = true; b.textContent = "Testing…";
+    try {
+      const { result } = await api("/api/test", { url: it.url, selector: selIn.value.trim(), allow_foreign: !!it.allow_foreign });
+      selectorResult = result;
+    } catch (err) { selectorResult = { ok: false, status: err.message, offers: [] }; }
+    renderItemDialog(state.items.find((i) => i.id === it.id) || it);
+    body.querySelector("#sel-in").value = selIn.value;
+  };
+  selIn.id = "sel-in";
+
+  body.replaceChildren(
+    h("div", { class: "md-head" }, pic(it),
+      h("div", { style: "min-width:0" },
+        h("h3", { id: "item-dialog-title" }, it.name),
+        h("div", { class: "badges" }, h("span", { class: "chip" }, it.site), badges(it))),
+      h("button", { class: "x", "aria-label": "Close", title: "Close", onclick: () => itemDialog.close() }, "×")),
+    h("div", { class: "md-body" },
+      failing(it) ? h("div", { class: "banner bad", style: "margin:12px 0 0" }, `⚠ ${it.status}. Try a CSS selector below.`) : null,
+      h("h4", {}, it.editions.length > 1 ? "Prices" : "Price"),
+      h("div", { class: "ed-table" }, it.editions.map((e) => h("div", { class: "ed-row" },
+        h("span", { class: "l", title: e.label }, it.editions.length > 1 ? (e.label || "Main") : "Now"),
+        h("span", { class: "p" }, money(e.price, e.currency), e.regular ? h("span", { class: "was" }, money(e.regular, e.currency)) : null),
+        h("span", { class: "m" }, (() => {
+          const text = [e.lowest_price != null ? `Lowest seen ${money(e.lowest_price, e.currency)}` : null, e.note].filter(Boolean).join(" · ");
+          return [stockTag(e.in_stock), e.in_stock != null && text ? " · " : "", text || (e.in_stock == null ? " " : "")];
+        })()),
+        sparkline(e.history)))),
+
+      h("h4", {}, "Alerts"),
+      h("div", { class: "fields" },
+        h("label", {}, "Name", nameIn),
+        h("label", {}, "Target price", targetIn),
+        h("label", {}, "Minimum drop", dropIn)),
+      h("div", { class: "opts" },
+        h("button", { class: "btn primary small", onclick: () => update(it.id, { name: nameIn.value, target: targetIn.value, min_drop: dropIn.value }) }, "Save")),
+      h("p", { class: "sub", style: "margin:8px 0 0" }, it.editions.length > 1 ? "The target and minimum drop apply to each edition." : "Leave the target blank to be told about drops only."),
+      h("label", { class: "switch" }, h("input", { type: "checkbox", checked: !!it.stock_alert, onchange: (e) => update(it.id, { stock_alert: e.currentTarget.checked }) }),
+        h("span", {}, h("b", {}, "📦 Back in stock alert"), h("span", { class: "sub" },
+          it.editions.some((e) => e.in_stock != null) ? "An urgent alert when it goes from out of stock to in stock."
+            : "This store does not show stock on the page, so this alert may never fire here."))),
+      h("label", { class: "switch" }, h("input", { type: "checkbox", checked: !!it.muted, onchange: (e) => update(it.id, { muted: e.currentTarget.checked }) }),
+        h("span", {}, h("b", {}, "🔕 Mute"), h("span", { class: "sub" }, "Keep checking and recording prices, but send no alerts."))),
+      h("label", { class: "switch" }, h("input", { type: "checkbox", checked: !!it.paused, onchange: (e) => update(it.id, { paused: e.currentTarget.checked }) }),
+        h("span", {}, h("b", {}, "⏸ Pause checking"), h("span", { class: "sub" }, "Stop checking this until you turn it back on."))),
+
+      it.editions.length > 1 ? [h("h4", {}, "Editions"),
+        h("div", { class: "checks" }, it.editions.map((e, i) => h("label", { class: "check" }, keep[i], h("span", {}, e.label || e.key)))),
+        h("button", { class: "btn small", onclick: () => update(it.id, { keep: it.editions.filter((e, i) => keep[i].checked).map((e) => e.key) }) }, "Save editions")] : null,
+
+      h("h4", {}, "How the price is read"),
+      h("p", { class: "sub" }, `Found by ${it.method || "nothing yet"} · checked ${when(it.last_checked)}` + (it.last_success && failing(it) ? ` · last worked ${when(it.last_success)}` : "")),
+      h("div", { class: "field" }, "CSS selector (only if the price is missed or wrong)", selIn),
+      h("div", { class: "opts", style: "margin-top:8px" },
+        h("button", { class: "btn small", onclick: testSelector }, "Test"),
+        h("button", { class: "btn small primary", onclick: () => update(it.id, { selector: selIn.value.trim() }) }, "Save selector")),
+      selectorResult ? h("div", { class: "result " + (selectorResult.ok ? "good" : "bad") },
+        selectorResult.ok ? `Found: ${selectorResult.offers.map((o) => money(o.price, o.currency)).join(", ")} (by ${selectorResult.method})`
+          : `No price found: ${selectorResult.status}`) : null,
+      it.allow_foreign ? h("p", { class: "sub", style: "margin-top:12px" }, "Not a Canadian listing: tracked in the store's own currency.") : null,
+
+      it.editions.some((e) => e.cart?.length) ? [h("h4", {}, "Buy"),
+        h("p", { class: "sub" }, "One tap puts it in a cart on this device. Buy now goes straight to checkout, where you can pay as a guest. Nothing is bought unless you finish checkout."),
+        buyRow(it, true) || h("p", { class: "sub" }, "Out of stock right now.")] : null,
+      h("div", { class: "opts", style: "margin-top:20px" },
+        h("a", { class: "btn small", href: it.url, target: "_blank", rel: "noopener noreferrer" }, "Open store page ↗"),
+        h("button", { class: "btn small", disabled: state.status.running, onclick: () => checkNow([it.id]) }, "Check now"),
+        h("span", { class: "spacer" }),
+        h("button", { class: "btn small quiet", onclick: () => remove(it) }, "Remove from watchlist"))));
+  itemDialog.scrollTop = scroll;
+}
+
+// ---- Alerts tab ----
+const saveSettings = (settings) => saveThen("/api/settings", { settings });
+
+function renderAlerts() {
+  const s = state.settings;
+  const panel = (title, sub, ...body) => h("div", { class: "panel" }, h("h3", {}, title), sub ? h("p", { class: "sub" }, sub) : null, body);
+  const banners = [];
+  if (s.snoozed) banners.push(h("div", { class: "banner warn" },
+    h("span", {}, `⏸ Alerts are snoozed until ${when(s.snooze_until)}. They are held and sent together afterwards.`),
+    h("button", { class: "btn small", onclick: () => saveSettings({ snooze_hours: 0 }) }, "Resume now")));
+  if (s.quiet_now) banners.push(h("div", { class: "banner info" },
+    `🌙 Quiet hours right now (until ${s.quiet_end}): alerts are held and sent as one summary afterwards.`));
+
+  const time = (key) => h("input", { type: "time", value: s[key] || "", onchange: (e) => saveSettings({ [key]: e.currentTarget.value }) });
+  const snooze = s.snoozed
+    ? [h("button", { class: "btn", onclick: () => saveSettings({ snooze_hours: 0 }) }, "Resume now")]
+    : [h("div", { class: "opts" }, [["1 hour", 1], ["8 hours", 8], ["1 day", 24], ["3 days", 72], ["1 week", 168]]
+        .map(([label, hrs]) => h("button", { class: "btn small", onclick: () => saveSettings({ snooze_hours: hrs }) }, label)))];
+
+  const held = state.held.length
+    ? h("div", { class: "list" }, state.held.map((a) => h("div", {},
+        h("div", {}, h("div", { class: "t" }, a.title), h("div", { class: "m" }, a.message)),
+        h("span", { class: "m" }, when(a.created)))))
+    : h("p", { class: "sub" }, "Nothing waiting.");
+
+  const quietItems = state.items.filter((i) => i.muted || i.paused);
+  const quietList = quietItems.length
+    ? h("div", { class: "list" }, quietItems.map((i) => h("div", {},
+        h("span", {}, i.name, " ", h("span", { class: "m" }, i.muted && i.paused ? "muted and paused" : i.muted ? "muted" : "paused")),
+        h("span", { class: "opts" },
+          i.muted ? h("button", { class: "btn small", onclick: () => update(i.id, { muted: false }) }, "Unmute") : null,
+          i.paused ? h("button", { class: "btn small", onclick: () => update(i.id, { paused: false }) }, "Resume") : null))))
+    : h("p", { class: "sub" }, "Nothing muted or paused. Tap 🔔 on a card's picture to mute it.");
+
+  const send = (path, body = {}) => async (e) => {
+    const b = e.currentTarget; b.disabled = true;
+    try { toast((await api(path, body)).message); } catch (err) { toast(err.message, true); } finally { b.disabled = false; }
+  };
+
+  $("#alerts-root").replaceChildren(...banners,
+    panel("Quiet hours", "Prices are still checked. Alerts are held and sent together as one summary when quiet hours end.",
+      h("label", { class: "switch" }, h("input", { type: "checkbox", checked: s.quiet_enabled !== false, onchange: (e) => saveSettings({ quiet_enabled: e.currentTarget.checked }) }),
+        h("span", {}, h("b", {}, "Quiet hours"))),
+      h("div", { class: "field-row" }, "From", time("quiet_start"), "to", time("quiet_end"), h("span", { class: "sub", style: "margin:0" }, "Toronto time")),
+      h("label", { class: "switch" }, h("input", { type: "checkbox", checked: !!s.quiet_allow_stock, onchange: (e) => saveSettings({ quiet_allow_stock: e.currentTarget.checked }) }),
+        h("span", {}, h("b", {}, "Let back in stock alerts through"), h("span", { class: "sub" }, "Stock can sell out overnight, so these can ring even during quiet hours."))),
+      !s.quiet_start || !s.quiet_end ? h("p", { class: "sub" }, "Set both times to turn quiet hours on.") : null),
+    panel("Snooze", "Take a break from alerts. Nothing is lost: they are held and sent together when the snooze ends.", snooze),
+    panel("Waiting to send", null, held),
+    panel("Muted and paused", null, quietList),
+    panel("On your phone", null,
+      h("p", { class: "sub" }, "Your phone gets alerts by subscribing to ", h("code", { class: "topic" }, state.status.topic || "(not set)"),
+        " in the ntfy app (server ntfy.sh). Tapping an alert opens the store page."),
+      h("div", { class: "opts" },
+        h("button", { class: "btn small primary", onclick: send("/api/test-notification") }, "Send test notification"),
+        h("button", { class: "btn small", onclick: send("/api/alerts/preview") }, "Send a sample price drop"),
+        h("button", { class: "btn small", onclick: send("/api/alerts/preview", { kind: "stock" }) }, "Sample back in stock"))),
+  );
+}
+
+// ---- Status tab ----
+function renderStatus() {
+  const s = state.status;
+  const stat = (label, value, cls, sub) => h("div", { class: "stat" },
+    h("div", { class: "label" }, label), h("div", { class: "value " + (cls || "") }, value || "—"), sub ? h("div", { class: "sub" }, sub) : null);
+  const run = s.last_run;
+  const problems = state.items.filter(failing).length;
+  $("#stats").replaceChildren(
+    stat("Web page", "Running", "ok", s.web_since ? "Since " + when(s.web_since) : null),
+    stat("Price checks", s.timer === "active" ? "Every 30 min" : s.timer, s.timer === "active" ? "ok" : "bad"),
+    stat("Starts on boot", s.enabled === "enabled" ? "Yes" : s.enabled, s.enabled === "enabled" ? "ok" : "bad"),
+    stat("Last check", run ? ago(run.finished) : "—", run && run.problems ? "warn" : "",
+      run ? `${plural(run.checked, "item")} · ${run.ok} ok${run.problems ? ` · ${run.problems} with problems` : ""}` : null),
+    stat("Next check", s.running ? "Running now" : clock(s.next_check), "", s.next_check ? when(s.next_check) : null),
+    stat("Items", String(state.items.length), problems ? "warn" : "", problems ? `${problems} need${problems === 1 ? "s" : ""} attention` : "All reading fine"),
+    stat("ntfy topic", s.topic),
+  );
+  renderPi();
+  const link = s.share_link;
+  $("#share-panel").hidden = !link;  // sharing is off unless PW_SHARE_TOKEN is set
+  $("#share-panel").replaceChildren(h("h3", {}, "Share a read-only view"),
+    link ? [h("p", { class: "sub" }, "Anyone with this link can see your watchlist (pictures, prices, stock) from any device, without Tailscale. They cannot change anything, and nothing else on the Pi is reachable through it."),
+      h("div", { class: "opts" }, h("code", { class: "topic" }, link),
+        h("button", { class: "btn small", onclick: () => navigator.clipboard.writeText(link).then(() => toast("Link copied."), () => toast("Copy it by hand: " + link)) }, "Copy link"),
+        h("a", { class: "btn small", href: link, target: "_blank", rel: "noopener" }, "Open ↗")),
+      h("p", { class: "sub", style: "margin:10px 0 0" }, "To change the link (for example to stop someone using it), change PW_SHARE_TOKEN in the .env file on the Pi.")]
+      : h("p", { class: "sub" }, "Sharing is off. It turns on when PW_SHARE_TOKEN is set in the .env file on the Pi."));
+  const log = $("#log");
+  const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  const problemsOnly = $("#log-problems").getAttribute("aria-pressed") === "true";
+  const bad = /cannot read|blocked|failed|could not|refused|error|traceback|dropping/i;
+  const lines = problemsOnly ? state.log.filter((l) => bad.test(l)) : state.log;
+  if (!lines.length) log.replaceChildren(problemsOnly ? "No problems in the recent log. 👍" : "Nothing logged since the Pi started.");
+  else log.replaceChildren(...lines.map((line) =>
+    h("div", { class: bad.test(line) ? "err" : /sent|queued|holding/i.test(line) ? "good" : "" }, line)));
+  if (atBottom) log.scrollTop = log.scrollHeight;
+}
+
+// Pi health tiles, the same as on the Cineplex dashboard.
+function renderPi() {
+  const p = state.pi;
+  if (!p) { $("#pi-stats").replaceChildren("Not available."); return; }
+  const gb = (bytes) => (bytes / 1024 ** 3).toFixed(1) + " GB";
+  const tile = (label, value, level, sub, pct) => h("div", { class: "stat" },
+    h("div", { class: "label" }, label), h("div", { class: "value " + (level || "") }, value ?? "—"),
+    pct != null ? h("div", { class: "meter" }, h("span", { class: level === "ok" ? "" : level, style: `width:${Math.min(100, Math.max(2, pct))}%` })) : null,
+    sub ? h("div", { class: "sub" }, sub) : null);
+  const level = (x, warn, bad) => x >= bad ? "bad" : x >= warn ? "warn" : "ok";
+  const tiles = [];
+  if (p.temp_c != null) {
+    const t = p.temp_c;
+    tiles.push(tile("CPU temperature", `${t} °C`, level(t, 70, 80),
+      t < 60 ? "Cool · slows itself down at 80 °C" : t < 70 ? "Warm · fine" : t < 80 ? "Hot · check airflow" : "Too hot · being slowed down", (t / 85) * 100));
+  }
+  if (p.throttled) {
+    const now = p.throttled.filter((x) => x.endsWith("now"));
+    tiles.push(tile("Power", now.length ? "Problem" : p.throttled.length ? "OK now" : "OK",
+      now.length ? "bad" : p.throttled.length ? "warn" : "ok", p.throttled.length ? p.throttled.join(" · ") : "No under-voltage or throttling since boot"));
+  }
+  if (p.mem_total) {
+    const used = p.mem_total - p.mem_available, pct = (used / p.mem_total) * 100;
+    tiles.push(tile("Memory", `${gb(p.mem_available)} free`, level(pct, 85, 95),
+      `${gb(used)} of ${gb(p.mem_total)} used` + (p.swap_used > 50 * 1024 ** 2 ? ` · swap ${gb(p.swap_used)}` : ""), pct));
+  }
+  if (p.disk_total) {
+    const used = p.disk_total - p.disk_free, pct = (used / p.disk_total) * 100;
+    tiles.push(tile("Storage (SD card)", `${gb(p.disk_free)} free`, level(pct, 80, 90), `${gb(used)} of ${gb(p.disk_total)} used (${Math.round(pct)}%)`, pct));
+  }
+  if (p.load) {
+    const pct = (p.load[0] / (p.cores || 1)) * 100;
+    tiles.push(tile("CPU load", `${Math.round(pct)}%`, level(pct, 70, 95),
+      `${p.load.join(" / ")} (1 / 5 / 15 min, ${p.cores} cores)` + (p.cpu_mhz ? ` · ${p.cpu_mhz} MHz` : ""), pct));
+  }
+  if (p.wifi_dbm != null) {
+    const d = p.wifi_dbm;
+    const [word, lvl] = d >= -55 ? ["Excellent", "ok"] : d >= -70 ? ["Good", "ok"] : d >= -80 ? ["Fair", "warn"] : ["Weak", "bad"];
+    tiles.push(tile("Wi-Fi", word, lvl, `${d} dBm` + (p.wifi_ssid ? ` · ${p.wifi_ssid}` : ""), ((d + 90) / 60) * 100));
+  }
+  if (p.uptime_seconds != null) {
+    const m = Math.floor(p.uptime_seconds / 60), d = Math.floor(m / 1440), hr = Math.floor((m % 1440) / 60);
+    tiles.push(tile("Up for", d ? `${d}d ${hr}h` : hr ? `${hr}h ${m % 60}m` : `${m}m`, "",
+      "Since " + new Date(Date.now() - p.uptime_seconds * 1000).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })));
+  }
+  if (p.pihole) tiles.push(tile("Pi-hole", p.pihole === "active" ? "Running" : p.pihole, p.pihole === "active" ? "ok" : "bad", "Ad blocker on this Pi"));
+  $("#pi-stats").replaceChildren(...tiles);
+}
+
+// ---- tabs, keys, theme ----
+const TABS = ["watchlist", "alerts", "status"];
+function showTab(name) {
+  for (const b of document.querySelectorAll("nav button[data-tab]")) b.setAttribute("aria-selected", b.dataset.tab === name);
+  for (const t of TABS) $("#tab-" + t).hidden = t !== name;
+  saved.set("tab", name);
+  history.replaceState(null, "", "#" + name);
+}
+for (const b of document.querySelectorAll("nav button[data-tab]")) b.addEventListener("click", () => showTab(b.dataset.tab));
+// Open the tab (or item) named in the address, else the last tab used.
+const fromHash = location.hash.slice(1);
+let openOnLoad = fromHash.startsWith("item-") ? fromHash.slice(5) : null;
+if (TABS.includes(fromHash)) showTab(fromHash);
+else if (TABS.includes(saved.get("tab"))) showTab(saved.get("tab"));
+
+$("#check-all").addEventListener("click", () => checkNow(null));
+$("#log-problems").addEventListener("click", (e) => {
+  const b = e.currentTarget;
+  b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true");
+  renderStatus();
+});
+
+const keysDialog = $("#keys");
+$("#keys-open").addEventListener("click", () => keysDialog.showModal());
+document.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || document.querySelector("dialog[open]")) return;
+  if (e.target.closest("input, textarea, select, [contenteditable]")) {
+    if (e.key === "Escape") e.target.blur();
+    return;
+  }
+  if (e.key === "/") { showTab("watchlist"); $("#add-url").focus(); $("#add-url").select(); }
+  else if (e.key === "f") { showTab("watchlist"); const f = $("#filter"); if (!f) return; f.focus(); }
+  else if (e.key >= "1" && e.key <= String(TABS.length)) { showTab(TABS[Number(e.key) - 1]); window.scrollTo({ top: 0 }); }
+  else if (e.key === "r") { if (!$("#check-all").disabled) checkNow(null); }
+  else if (e.key === "t") $("#theme").click();
+  else if (e.key === "?") keysDialog.showModal();
+  else return;
+  e.preventDefault();
+});
+
+const toTop = $("#to-top");
+addEventListener("scroll", () => { toTop.hidden = scrollY < 1200; }, { passive: true });
+toTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }));
+
+// Theme: automatic (follow the device), light or dark; remembered per browser.
+const THEMES = ["auto", "light", "dark"];
+const THEME_LABELS = { auto: "◐ Auto", light: "☀ Light", dark: "☾ Dark" };
+function applyTheme(theme) {
+  if (theme === "auto") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.dataset.theme = theme;
+  $("#theme").textContent = THEME_LABELS[theme];
+}
+let theme = THEMES.includes(saved.get("theme")) ? saved.get("theme") : "auto";
+applyTheme(theme);
+$("#theme").addEventListener("click", () => {
+  theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+  applyTheme(theme);
+  saved.set("theme", theme);
+});
+
+// Keep "How it works" open or closed the way you left it.
+$("#help").open = saved.get("help") === "open";
+$("#help").addEventListener("toggle", (e) => saved.set("help", e.currentTarget.open ? "open" : "closed"));
+
+showSkeletons();
+load().then(() => { if (openOnLoad) { showTab("watchlist"); openItem(openOnLoad); openOnLoad = null; } });
+// Catch up straight away when coming back to a tab or phone left in the background.
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && state && Date.now() - lastLoad > 30000) load();
+});
+</script>
+</body>
+</html>

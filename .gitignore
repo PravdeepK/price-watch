@@ -1,0 +1,31 @@
+# Private settings
+.env
+.env.*
+*.env
+!.env.example
+
+# Runtime data: the price database, its lock files, temp copies and backups
+watchlist.json
+watchlist.json.*
+check.lock
+*.lock
+*.tmp
+backups/
+backup-*/
+*_state.json
+*_cache.json
+*.log
+*.log.*
+
+# Virtual environments and Python caches
+.venv/
+.venv-*/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Editor and assistant files
+.DS_Store
+.claude/
+CLAUDE.md

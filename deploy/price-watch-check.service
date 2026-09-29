@@ -1,0 +1,14 @@
+[Unit]
+Description=Price Watch price check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=YOUR_USER
+WorkingDirectory=/opt/price-watch
+EnvironmentFile=/opt/price-watch/.env
+ExecStart=/opt/price-watch/.venv/bin/python price_watch.py
+TimeoutStartSec=20min
+Nice=10
+MemoryMax=800M
